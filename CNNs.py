@@ -357,7 +357,7 @@ interp_tprs_greed_search = []
 confusion_matrices_greed_search = []
 
 #params for greed search
-numOfBatches = [8,21];
+numOfBatches = [8,22];
 learningRates = [0.0005,0.001]
 momentums = [0.9,0.95]
 for batch_size in numOfBatches:
