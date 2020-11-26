@@ -377,7 +377,7 @@ for batch_size in numOfBatches:
                 tensor_y = tensor_y.to(device)
 
                 my_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
-                my_dataloader_train = DataLoader(my_dataset,batch_size=batch_size) # create your dataloader
+                my_dataloader_train = DataLoader(my_dataset,batch_size=batch_size,drop_last=True) # create your dataloader
                 
                 tensor_x = torch.Tensor(datasetX[valIndex]) # transform to torch tensor
                 tensor_x = tensor_x.to(device)
@@ -385,7 +385,7 @@ for batch_size in numOfBatches:
                 tensor_y = tensor_y.to(device)
 
                 my_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
-                my_dataloader_val = DataLoader(my_dataset,batch_size=batch_size) # create your dataloader
+                my_dataloader_val = DataLoader(my_dataset,batch_size=batch_size,drop_last=True) # create your dataloader
                 #print("#### ", my_dataset.type())
                 my_dataloader = {'train' : my_dataloader_train, 'val' : my_dataloader_val}
                 
