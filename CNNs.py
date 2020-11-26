@@ -72,6 +72,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                     if is_inception and phase == 'train':
                         # From https://discuss.pytorch.org/t/how-to-optimize-inception-model-with-auxiliary-classifiers/7958
                         outputs, aux_outputs = model(inputs)
+                        labels = labels.long()
                         loss1 = criterion(outputs, labels)
                         loss2 = criterion(aux_outputs, labels)
                         loss = loss1 + 0.4*loss2
@@ -327,7 +328,8 @@ datasetX = load(str(loading_path) + 'datasetX.npy')
 datasetY = load(str(loading_path) + 'datasetY.npy')
 
 print(datasetX.shape,datasetY.shape)
-datasetX = datasetX.reshape(3*219,224,224,3)
+img_width, img_height = datasetX.shape[2:4]
+datasetX = datasetX.reshape(3*219,img_width,img_height,3)
 datasetX = np.transpose(datasetX, (0,3, 1, 2))
 
 datasetX = datasetX / 1.0 + 0.00 #####################################################################################################

@@ -76,7 +76,7 @@ def saveNumpyArrays(requiredShape, channelsNum, saving_path):
 saving_path = ''
 #this function saves images 
 #input:   (required_image_shape, number of channels, saving path)
-saveNumpyArrays(224, 3, saving_path)
+saveNumpyArrays(299, 3, saving_path)
 loading_path = ''
 datasetX = load(str(loading_path) + 'datasetX.npy')
 datasetY = load(str(loading_path) + 'datasetY.npy')
