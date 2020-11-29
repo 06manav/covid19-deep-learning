@@ -412,199 +412,130 @@ def translate(image, vector):
         transform = AffineTransform(translation=vector)
         shifted = warp(image, transform, mode='constant', preserve_range=True)
         return shifted
-                                      
-# Top level data directory. Here we assume the format of the directory conforms
-#   to the ImageFolder structure
-data_dir = "./data/hymenoptera_data"
+    
+def main():                                  
+    torch.multiprocessing.freeze_support()
+    # Top level data directory. Here we assume the format of the directory conforms
+    #   to the ImageFolder structure
+    data_dir = "./data/hymenoptera_data"
 
-# Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
-# inception has 299x299 images as input, so  images should be preprocessed differently
-model_name = 'alexnet'
-input_size = 224 # inception has 299
- 
- 
-# Number of classes in the dataset
-num_classes = 3
+    # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
+    # inception has 299x299 images as input, so  images should be preprocessed differently
+    model_name = 'alexnet'
+    input_size = 224 # inception has 299
+     
+     
+    # Number of classes in the dataset
+    num_classes = 3
 
-# Batch size for training (change depending on how much memory you have)
-batch_size = 20
+    # Batch size for training (change depending on how much memory you have)
+    batch_size = 20
 
-# Number of epochs to train for
-num_epochs = 20
+    # Number of epochs to train for
+    num_epochs = 20
 
-# Flag for feature extracting. When False, we finetune the whole model,
-#   when True we only update the reshaped layer params
-feature_extract = False
+    # Flag for feature extracting. When False, we finetune the whole model,
+    #   when True we only update the reshaped layer params
+    feature_extract = False
 
-# Detect if we have a GPU available
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-############################
+    # Detect if we have a GPU available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    ############################
 
-#optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
-#optimizer_ft = optim.Adam(params_to_update, lr=0.001)
-###################################################
+    #optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+    #optimizer_ft = optim.Adam(params_to_update, lr=0.001)
+    ###################################################
 
-num_folds = 5
-# Define the K-fold Cross Validator
-kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
+    num_folds = 5
+    # Define the K-fold Cross Validator
+    kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
 
-#loading path with preprocessed images
-loading_path = ''
-n = 219
-split_coef = 0.8
-indices = np.array(range(n*3),dtype=np.int64)
-indices = indices.reshape(3,n)
-for i in range(3):
-    for j in range(3):
-        np.random.shuffle(indices[i])
-indices_cv = []; indices_test = []
-labels_cv = []; labels_test = []
-labels = np.ones(n*3,dtype=np.uint64)
-labels[0:n] = 0; labels[n:2*n] = 1; labels[2*n:] = 2;
-labels = labels.reshape(3,n)
-for i in range(3):
-    indices_cv = np.append(indices_cv,indices[i,:int(split_coef*n)])
-    indices_test = np.append(indices_test,indices[i,int(split_coef*n):])
-    labels_cv = np.append(labels_cv,labels[i,:int(split_coef*n)])
-    labels_test = np.append(labels_test,labels[i,int(split_coef*n):])
+    #loading path with preprocessed images
+    loading_path = ''
+    n = 219
+    split_coef = 0.8
+    indices = np.array(range(n*3),dtype=np.int64)
+    indices = indices.reshape(3,n)
+    for i in range(3):
+        for j in range(3):
+            np.random.shuffle(indices[i])
+    indices_cv = []; indices_test = []
+    labels_cv = []; labels_test = []
+    labels = np.ones(n*3,dtype=np.uint64)
+    labels[0:n] = 0; labels[n:2*n] = 1; labels[2*n:] = 2;
+    labels = labels.reshape(3,n)
+    for i in range(3):
+        indices_cv = np.append(indices_cv,indices[i,:int(split_coef*n)])
+        indices_test = np.append(indices_test,indices[i,int(split_coef*n):])
+        labels_cv = np.append(labels_cv,labels[i,:int(split_coef*n)])
+        labels_test = np.append(labels_test,labels[i,int(split_coef*n):])
 
-modelsParameters = []
-# arrays to store all the data through the greed search
-histData_greed_search = []
-interp_tprs_greed_search = []
-confusion_matrices_greed_search = []
+    modelsParameters = []
+    # arrays to store all the data through the greed search
+    histData_greed_search = []
+    interp_tprs_greed_search = []
+    confusion_matrices_greed_search = []
 
-#params for greed search
-numOfBatches = [8,22];
-learningRates = [0.0005,0.001]
-momentums = [0.9,0.95]
-for batch_size in numOfBatches:
-    for lr in learningRates:
-        for momentum in momentums:
-            print('#'*70,'\n','current params: {}, {}, {}'.format(batch_size,lr,momentum)); print('#'*70)
-            modelsParameters.append([batch_size,lr,momentum])
-            histData_cv = []
-            interp_tprs_cv = []
-            confusion_matrices_cv = []
-            # Define the K-fold Cross Validator
-            kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
-            #####################################
-            for trainIndex, valIndex in kfold.split(indices_cv, labels_cv):
-                train_indices = np.array(indices_cv[trainIndex],dtype=np.uint32)
-                val_indices = np.array(indices_cv[valIndex],dtype=np.uint32)
-                data_dir = 'COVID-19 Radiography Database/'
-                data_transforms = torchvision.transforms.Compose([
-                                                        Resize(input_size)
-                                                        
-                                                        #torchvision.transforms.ColorJitter(hue=.05, saturation=.05),
-                                                        #torchvision.transforms.RandomHorizontalFlip(),
-                                                        #torchvision.transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
-                                                    ])
-                image_dataset_train =  CustomDataSet(data_dir, train_indices, transform=data_transforms,mode=True)
-                image_dataset_val =  CustomDataSet(data_dir, val_indices,transform=data_transforms,mode=False)
-                #show_dataset(image_dataset_train) 
-                dataloaders_train = torch.utils.data.DataLoader(image_dataset_train, batch_size=batch_size, \
-                                                            shuffle=True, num_workers=4)
-                dataloaders_val = torch.utils.data.DataLoader(image_dataset_val, batch_size=batch_size, \
-                                                            shuffle=True, num_workers=4)
-                dataloaders_dict = {"train" : dataloaders_train, "val" : dataloaders_val}                                            
-                # Setup the loss fxn
-                criterion = nn.CrossEntropyLoss()
-                ### Initialize the model for this run
-                model_ft, optimizer_ft = getModel(lr, momentum)
-                ###
-                # Train and evaluate
-                model, val_acc_history, histData, interp_tprs, confusion_matrices = train_model(model_ft, \
-                                                             dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs, \
-                                                                                    is_inception = (model_name=="inception"))
-                histData_cv.append(histData)
-                interp_tprs_cv.append(interp_tprs)
-                confusion_matrices_cv.append(confusion_matrices)
-                
-                gc.collect()
-                torch.cuda.empty_cache() 
-            ####################################
-            histData_greed_search.append(histData_cv)
-            interp_tprs_greed_search.append(interp_tprs_cv)
-            confusion_matrices_greed_search.append(confusion_matrices_cv)
+    #params for greed search
+    numOfBatches = [8,22];
+    learningRates = [0.0005,0.001]
+    momentums = [0.9,0.95]
+    for batch_size in numOfBatches:
+        for lr in learningRates:
+            for momentum in momentums:
+                print('#'*70,'\n','current params: {}, {}, {}'.format(batch_size,lr,momentum)); print('#'*70)
+                modelsParameters.append([batch_size,lr,momentum])
+                histData_cv = []
+                interp_tprs_cv = []
+                confusion_matrices_cv = []
+                # Define the K-fold Cross Validator
+                kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
+                #####################################
+                for trainIndex, valIndex in kfold.split(indices_cv, labels_cv):
+                    train_indices = np.array(indices_cv[trainIndex],dtype=np.uint32)
+                    val_indices = np.array(indices_cv[valIndex],dtype=np.uint32)
+                    data_dir = 'COVID-19 Radiography Database/'
+                    data_transforms = torchvision.transforms.Compose([
+                                                            Resize(input_size)
+                                                            
+                                                            #torchvision.transforms.ColorJitter(hue=.05, saturation=.05),
+                                                            #torchvision.transforms.RandomHorizontalFlip(),
+                                                            #torchvision.transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
+                                                        ])
+                    image_dataset_train =  CustomDataSet(data_dir, train_indices, transform=data_transforms,mode=True)
+                    image_dataset_val =  CustomDataSet(data_dir, val_indices,transform=data_transforms,mode=False)
+                    #show_dataset(image_dataset_train) 
+                    dataloaders_train = torch.utils.data.DataLoader(image_dataset_train, batch_size=batch_size, \
+                                                                shuffle=True, num_workers=4)
+                    dataloaders_val = torch.utils.data.DataLoader(image_dataset_val, batch_size=batch_size, \
+                                                                shuffle=True, num_workers=4)
+                    dataloaders_dict = {"train" : dataloaders_train, "val" : dataloaders_val}                                            
+                    # Setup the loss fxn
+                    criterion = nn.CrossEntropyLoss()
+                    ### Initialize the model for this run
+                    model_ft, optimizer_ft = getModel(lr, momentum)
+                    ###
+                    # Train and evaluate
+                    model, val_acc_history, histData, interp_tprs, confusion_matrices = train_model(model_ft, \
+                                                                 dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs, \
+                                                                                        is_inception = (model_name=="inception"))
+                    histData_cv.append(histData)
+                    interp_tprs_cv.append(interp_tprs)
+                    confusion_matrices_cv.append(confusion_matrices)
+                    
+                    gc.collect()
+                    torch.cuda.empty_cache() 
+                ####################################
+                histData_greed_search.append(histData_cv)
+                interp_tprs_greed_search.append(interp_tprs_cv)
+                confusion_matrices_greed_search.append(confusion_matrices_cv)
 
-#path for saving history of the greed search 
-saving_path = ''
-np.save(saving_path + model_name + '_modelsParameters.npy', np.array(modelsParameters))
-np.save(saving_path + model_name + '_histData_greed_search.npy', np.array(histData_greed_search))
-np.save(saving_path + model_name + '_interp_tprs_greed_search.npy', np.array(interp_tprs_greed_search))
-np.save(saving_path + model_name + '_confusion_matrices_greed_search.npy', np.array(confusion_matrices_greed_search))
+    #path for saving history of the greed search 
+    saving_path = ''
+    np.save(saving_path + model_name + '_modelsParameters.npy', np.array(modelsParameters))
+    np.save(saving_path + model_name + '_histData_greed_search.npy', np.array(histData_greed_search))
+    np.save(saving_path + model_name + '_interp_tprs_greed_search.npy', np.array(interp_tprs_greed_search))
+    np.save(saving_path + model_name + '_confusion_matrices_greed_search.npy', np.array(confusion_matrices_greed_search))
 
-
-'''    
-plt.plot(histData[0], label = 'train accuracy')
-plt.plot(histData[1], label = 'train loss')
-plt.plot(histData[2], label = 'validation accuracy')
-plt.plot(histData[3], label = 'validation loss')
-plt.plot(histData[4], label = 'validation f1_score')
-plt.plot(histData[5], label = 'validation precision')
-plt.plot(histData[6], label='validation recall')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy measure')
-plt.legend(loc='upper right')     
-plt.show()
-print(interp_tprs[0])    
-#mean_tpr = np.mean(interp_tprs, axis=0)
-mean_tpr = interp_tprs[-1]
-mean_tpr[-1] = 1.0
-mean_fpr = np.linspace(0, 1, 100)
-mean_auc = sklearn.metrics.auc(mean_fpr, mean_tpr)
-plt.figure(num_epochs)
-plt.plot(mean_fpr, mean_tpr, color='b',
-    label=r'Mean ROC (AUC = %0.2f)' % (mean_auc),
-    lw=2, alpha=.8)   
-plt.show()
-print(confusion_matrices[0])
-print(confusion_matrices[-1])
-'''
-
-'''                                                                  
-model_ft.eval()
-
-tensors = [torch.from_numpy(x) for x in datasetX_test]
-tensors = [x.float() for x in tensors]
-image_batch = torch.stack(tensors)
-yhat = predict(image_batch, model_ft)
-total_acc = np.sum(datasetY_test == yhat)
-final_train_acc = total_acc/len(datasetX_test) 
-print('########\n\n',  final_train_acc, '\n\n') 
-print(yhat)
-
-# Compute ROC curve and ROC area for each class
-yhat = model_ft(image_batch)
-y_hat = yhat.detach().numpy()
-
-y_test = label_binarize(datasetY_test, classes=[0, 1, 2])
-
-#Compute ROC curve and ROC area for each class
-
-fpr, tpr, roc_auc = getPRs(y_test, y_hat)'''
-
-
-'''
-
-# Plot ROC curve
-plt.figure()
-plt.plot(fpr["micro"], tpr["micro"],
-         label='micro-average ROC curve (area = {0:0.2f})'
-               ''.format(roc_auc["micro"]))
-for i in range(n_classes):
-    plt.plot(fpr[i], tpr[i], label='ROC curve of class {0} (area = {1:0.2f})'
-                                   ''.format(i, roc_auc[i]))
-
-plt.plot([0, 1], [0, 1], 'k--')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('Some extension of Receiver operating characteristic to multi-class')
-plt.legend(loc="lower right")
-plt.show()'''
-
-                                                  
-    #######################
+if __name__=='__main__':
+    main()
