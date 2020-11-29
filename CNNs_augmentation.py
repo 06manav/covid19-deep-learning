@@ -31,7 +31,7 @@ print("Torchvision Version: ",torchvision.__version__)
 
 #!
 
-def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
+def train_model(model, dataloaders, criterion, optimizer, device,num_epochs=25, is_inception=False):
     since = time.time()
 
     val_acc_history = []
@@ -235,7 +235,7 @@ def predict(batch, model):
         predicted = predicted.numpy()
     return predicted
 
-def getModel(lr,momentum, model_name):
+def getModel(lr,momentum, model_name, num_classes, feature_extract,device):
     model_ft, input_size = initialize_model(model_name, num_classes, feature_extract, use_pretrained=True)
 
     # Print the model we just instantiated
@@ -301,7 +301,8 @@ def show_dataset(dataset, n=6):
     
  
 class CustomDataSet(torch.utils.data.Dataset):
-    def __init__(self, main_dir, indices, transform,mode):
+    def __init__(self, main_dir, indices, device,transform,mode):
+        self.device = device
         self.main_dir = main_dir
         self.transform = transform
         self.mode = mode
@@ -383,7 +384,7 @@ class CustomDataSet(torch.utils.data.Dataset):
         image = (image - mean) / std
         
         image = torchvision.transforms.ToTensor()(image)
-        image = image.to(device)
+        image = image.to(self.device)
         #print(tensor_image.type())
         #print(tensor_image.shape)
         #image = tensor_image.detach().numpy()
@@ -419,6 +420,61 @@ def main():
     #   to the ImageFolder structure
     
     #params for greed search
+    # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
+    # inception has 299x299 images as input, so  images should be preprocessed differently
+    model_name = 'alexnet'
+    input_size = 224 # inception has 299
+     
+     
+    # Number of classes in the dataset
+    num_classes = 3
+
+    # Batch size for training (change depending on how much memory you have)
+    batch_size = 20
+
+    # Number of epochs to train for
+    num_epochs = 20
+
+    # Flag for feature extracting. When False, we finetune the whole model,
+    #   when True we only update the reshaped layer params
+    feature_extract = False
+
+    # Detect if we have a GPU available
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    ############################
+
+    #optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+    #optimizer_ft = optim.Adam(params_to_update, lr=0.001)
+    ###################################################
+
+    num_folds = 5
+    # Define the K-fold Cross Validator
+    kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
+
+    #loading path with preprocessed images
+    n = 219
+    split_coef = 0.8
+    indices = np.array(range(n*3),dtype=np.int64)
+    indices = indices.reshape(3,n)
+    for i in range(3):
+        for j in range(3):
+            np.random.shuffle(indices[i])
+    indices_cv = []; indices_test = []
+    labels_cv = []; labels_test = []
+    labels = np.ones(n*3,dtype=np.uint64)
+    labels[0:n] = 0; labels[n:2*n] = 1; labels[2*n:] = 2;
+    labels = labels.reshape(3,n)
+    for i in range(3):
+        indices_cv = np.append(indices_cv,indices[i,:int(split_coef*n)])
+        indices_test = np.append(indices_test,indices[i,int(split_coef*n):])
+        labels_cv = np.append(labels_cv,labels[i,:int(split_coef*n)])
+        labels_test = np.append(labels_test,labels[i,int(split_coef*n):])
+
+    modelsParameters = []
+    # arrays to store all the data through the greed search
+    histData_greed_search = []
+    interp_tprs_greed_search = []
+    confusion_matrices_greed_search = []
     numOfBatches = [8,22];
     learningRates = [0.0005,0.001]
     momentums = [0.9,0.95]
@@ -444,8 +500,8 @@ def main():
                                                             #torchvision.transforms.RandomHorizontalFlip(),
                                                             #torchvision.transforms.RandomRotation(20, resample=PIL.Image.BILINEAR),
                                                         ])
-                    image_dataset_train =  CustomDataSet(data_dir, train_indices, transform=data_transforms,mode=True)
-                    image_dataset_val =  CustomDataSet(data_dir, val_indices,transform=data_transforms,mode=False)
+                    image_dataset_train =  CustomDataSet(data_dir, train_indices, device, transform=data_transforms,mode=True)
+                    image_dataset_val =  CustomDataSet(data_dir, val_indices,device,transform=data_transforms,mode=False)
                     #show_dataset(image_dataset_train) 
                     dataloaders_train = torch.utils.data.DataLoader(image_dataset_train, batch_size=batch_size, \
                                                                 shuffle=True, num_workers=4)
@@ -455,11 +511,11 @@ def main():
                     # Setup the loss fxn
                     criterion = nn.CrossEntropyLoss()
                     ### Initialize the model for this run
-                    model_ft, optimizer_ft = getModel(lr, momentum, model_name)
+                    model_ft, optimizer_ft = getModel(lr, momentum, model_name, num_classes, feature_extract, device)
                     ###
                     # Train and evaluate
                     model, val_acc_history, histData, interp_tprs, confusion_matrices = train_model(model_ft, \
-                                                                 dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs, \
+                                                                 dataloaders_dict, criterion, optimizer_ft, device, num_epochs=num_epochs, \
                                                                                         is_inception = (model_name=="inception"))
                     histData_cv.append(histData)
                     interp_tprs_cv.append(interp_tprs)
@@ -479,61 +535,7 @@ def main():
     np.save(saving_path + model_name + '_interp_tprs_greed_search.npy', np.array(interp_tprs_greed_search))
     np.save(saving_path + model_name + '_confusion_matrices_greed_search.npy', np.array(confusion_matrices_greed_search))
 
-# Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
-# inception has 299x299 images as input, so  images should be preprocessed differently
-model_name = 'alexnet'
-input_size = 224 # inception has 299
- 
- 
-# Number of classes in the dataset
-num_classes = 3
 
-# Batch size for training (change depending on how much memory you have)
-batch_size = 20
-
-# Number of epochs to train for
-num_epochs = 20
-
-# Flag for feature extracting. When False, we finetune the whole model,
-#   when True we only update the reshaped layer params
-feature_extract = False
-
-# Detect if we have a GPU available
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-############################
-
-#optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
-#optimizer_ft = optim.Adam(params_to_update, lr=0.001)
-###################################################
-
-num_folds = 5
-# Define the K-fold Cross Validator
-kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
-
-#loading path with preprocessed images
-n = 219
-split_coef = 0.8
-indices = np.array(range(n*3),dtype=np.int64)
-indices = indices.reshape(3,n)
-for i in range(3):
-    for j in range(3):
-        np.random.shuffle(indices[i])
-indices_cv = []; indices_test = []
-labels_cv = []; labels_test = []
-labels = np.ones(n*3,dtype=np.uint64)
-labels[0:n] = 0; labels[n:2*n] = 1; labels[2*n:] = 2;
-labels = labels.reshape(3,n)
-for i in range(3):
-    indices_cv = np.append(indices_cv,indices[i,:int(split_coef*n)])
-    indices_test = np.append(indices_test,indices[i,int(split_coef*n):])
-    labels_cv = np.append(labels_cv,labels[i,:int(split_coef*n)])
-    labels_test = np.append(labels_test,labels[i,int(split_coef*n):])
-
-modelsParameters = []
-# arrays to store all the data through the greed search
-histData_greed_search = []
-interp_tprs_greed_search = []
-confusion_matrices_greed_search = []
 
 if __name__=='__main__':
     main()
