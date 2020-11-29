@@ -26,8 +26,8 @@ from sklearn.multiclass import OneVsRestClassifier
 from skimage.util import img_as_float
 from skimage.transform import (rescale, resize, downscale_local_mean, rotate,AffineTransform,warp)
 import gc
-print("PyTorch Version: ",torch.__version__)
-print("Torchvision Version: ",torchvision.__version__)
+#print("PyTorch Version: ",torch.__version__)
+#print("Torchvision Version: ",torchvision.__version__)
 
 #!
 
@@ -504,9 +504,9 @@ def main():
                     image_dataset_val =  CustomDataSet(data_dir, val_indices,device,transform=data_transforms,mode=False)
                     #show_dataset(image_dataset_train) 
                     dataloaders_train = torch.utils.data.DataLoader(image_dataset_train, batch_size=batch_size, \
-                                                                shuffle=True, num_workers=4)
+                                                                shuffle=True, num_workers=0)
                     dataloaders_val = torch.utils.data.DataLoader(image_dataset_val, batch_size=batch_size, \
-                                                                shuffle=True, num_workers=4)
+                                                                shuffle=True, num_workers=0)
                     dataloaders_dict = {"train" : dataloaders_train, "val" : dataloaders_val}                                            
                     # Setup the loss fxn
                     criterion = nn.CrossEntropyLoss()
