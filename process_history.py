@@ -28,8 +28,8 @@ print("Torchvision Version: ",torchvision.__version__)
 
 
 #path for loading history of the greed search
-model_name = 'resnet' 
-saving_path = '/home/kons/workspace/data_analytics/code/project/' + model_name + '/'
+model_name = 'inception' 
+saving_path = model_name + '/'
 
 modelsParameters = load(saving_path + model_name + '_modelsParameters.npy')
 histData_greed_search = load(saving_path + model_name + '_histData_greed_search.npy')

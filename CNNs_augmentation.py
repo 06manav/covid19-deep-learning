@@ -58,8 +58,8 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
 
             # Iterate over data.
             outputs_all = np.array([]); labels_all = np.array([]);
-            all_preds = torch.tensor([])
-            all_labels = torch.tensor([])
+            all_preds = torch.tensor([]).to(device)
+            all_labels = torch.tensor([]).to(device)
             outputs_all_for_scores = np.array([])
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
@@ -96,9 +96,9 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-                outputs_all = np.append(outputs_all,outputs.detach().numpy())
-                labels_all = np.append(labels_all,labels.detach().numpy())
-                outputs_all_for_scores = np.append(outputs_all_for_scores, preds.detach().numpy())
+                outputs_all = np.append(outputs_all,outputs.cpu().detach().numpy())
+                labels_all = np.append(labels_all,labels.cpu().detach().numpy())
+                outputs_all_for_scores = np.append(outputs_all_for_scores, preds.cpu().detach().numpy())
             
             labels_all_for_scores = labels_all.reshape(np.prod(labels_all.shape))
             labels_all = label_binarize(labels_all, classes=[0, 1, 2])
@@ -116,7 +116,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             for p in stacked:
                 tl, pl = p.tolist()
                 cmt[tl, pl] = cmt[tl, pl] + 1
-            cmt = cmt.detach().numpy()
+            cmt = cmt.cpu().detach().numpy()
             
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 
@@ -383,6 +383,7 @@ class CustomDataSet(torch.utils.data.Dataset):
         image = (image - mean) / std
         
         image = torchvision.transforms.ToTensor()(image)
+        image = image.to(device)
         #print(tensor_image.type())
         #print(tensor_image.shape)
         #image = tensor_image.detach().numpy()
@@ -448,7 +449,7 @@ num_folds = 5
 kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
 
 #loading path with preprocessed images
-loading_path = '/home/kons/workspace/data_analytics/datasets/xray-binary/'
+loading_path = ''
 n = 219
 split_coef = 0.8
 indices = np.array(range(n*3),dtype=np.int64)
@@ -491,7 +492,7 @@ for batch_size in numOfBatches:
             for trainIndex, valIndex in kfold.split(indices_cv, labels_cv):
                 train_indices = np.array(indices_cv[trainIndex],dtype=np.uint32)
                 val_indices = np.array(indices_cv[valIndex],dtype=np.uint32)
-                data_dir = '/home/kons/workspace/data_analytics/datasets/COVID-19 Radiography Database/'
+                data_dir = 'COVID-19 Radiography Database/'
                 data_transforms = torchvision.transforms.Compose([
                                                         Resize(input_size)
                                                         

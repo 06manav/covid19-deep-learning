@@ -295,7 +295,7 @@ data_dir = "./data/hymenoptera_data"
 
 # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
 # inception has 299x299 images as input, so  images should be preprocessed differently
-model_name = 'inception'
+model_name = 'vgg'
 
 # Number of classes in the dataset
 num_classes = 3
@@ -308,7 +308,7 @@ num_epochs = 20
 
 # Flag for feature extracting. When False, we finetune the whole model,
 #   when True we only update the reshaped layer params
-feature_extract = True
+feature_extract = False
 
 # Detect if we have a GPU available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
