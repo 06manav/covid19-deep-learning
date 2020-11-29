@@ -417,65 +417,7 @@ def main():
     torch.multiprocessing.freeze_support()
     # Top level data directory. Here we assume the format of the directory conforms
     #   to the ImageFolder structure
-    data_dir = "./data/hymenoptera_data"
-
-    # Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
-    # inception has 299x299 images as input, so  images should be preprocessed differently
-    model_name = 'alexnet'
-    input_size = 224 # inception has 299
-     
-     
-    # Number of classes in the dataset
-    num_classes = 3
-
-    # Batch size for training (change depending on how much memory you have)
-    batch_size = 20
-
-    # Number of epochs to train for
-    num_epochs = 20
-
-    # Flag for feature extracting. When False, we finetune the whole model,
-    #   when True we only update the reshaped layer params
-    feature_extract = False
-
-    # Detect if we have a GPU available
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    ############################
-
-    #optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
-    #optimizer_ft = optim.Adam(params_to_update, lr=0.001)
-    ###################################################
-
-    num_folds = 5
-    # Define the K-fold Cross Validator
-    kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
-
-    #loading path with preprocessed images
-    loading_path = ''
-    n = 219
-    split_coef = 0.8
-    indices = np.array(range(n*3),dtype=np.int64)
-    indices = indices.reshape(3,n)
-    for i in range(3):
-        for j in range(3):
-            np.random.shuffle(indices[i])
-    indices_cv = []; indices_test = []
-    labels_cv = []; labels_test = []
-    labels = np.ones(n*3,dtype=np.uint64)
-    labels[0:n] = 0; labels[n:2*n] = 1; labels[2*n:] = 2;
-    labels = labels.reshape(3,n)
-    for i in range(3):
-        indices_cv = np.append(indices_cv,indices[i,:int(split_coef*n)])
-        indices_test = np.append(indices_test,indices[i,int(split_coef*n):])
-        labels_cv = np.append(labels_cv,labels[i,:int(split_coef*n)])
-        labels_test = np.append(labels_test,labels[i,int(split_coef*n):])
-
-    modelsParameters = []
-    # arrays to store all the data through the greed search
-    histData_greed_search = []
-    interp_tprs_greed_search = []
-    confusion_matrices_greed_search = []
-
+    
     #params for greed search
     numOfBatches = [8,22];
     learningRates = [0.0005,0.001]
@@ -536,6 +478,62 @@ def main():
     np.save(saving_path + model_name + '_histData_greed_search.npy', np.array(histData_greed_search))
     np.save(saving_path + model_name + '_interp_tprs_greed_search.npy', np.array(interp_tprs_greed_search))
     np.save(saving_path + model_name + '_confusion_matrices_greed_search.npy', np.array(confusion_matrices_greed_search))
+
+# Models to choose from [resnet, alexnet, vgg, squeezenet, densenet, inception]
+# inception has 299x299 images as input, so  images should be preprocessed differently
+model_name = 'alexnet'
+input_size = 224 # inception has 299
+ 
+ 
+# Number of classes in the dataset
+num_classes = 3
+
+# Batch size for training (change depending on how much memory you have)
+batch_size = 20
+
+# Number of epochs to train for
+num_epochs = 20
+
+# Flag for feature extracting. When False, we finetune the whole model,
+#   when True we only update the reshaped layer params
+feature_extract = False
+
+# Detect if we have a GPU available
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+############################
+
+#optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+#optimizer_ft = optim.Adam(params_to_update, lr=0.001)
+###################################################
+
+num_folds = 5
+# Define the K-fold Cross Validator
+kfold = StratifiedKFold(n_splits=num_folds, shuffle=True)
+
+#loading path with preprocessed images
+n = 219
+split_coef = 0.8
+indices = np.array(range(n*3),dtype=np.int64)
+indices = indices.reshape(3,n)
+for i in range(3):
+    for j in range(3):
+        np.random.shuffle(indices[i])
+indices_cv = []; indices_test = []
+labels_cv = []; labels_test = []
+labels = np.ones(n*3,dtype=np.uint64)
+labels[0:n] = 0; labels[n:2*n] = 1; labels[2*n:] = 2;
+labels = labels.reshape(3,n)
+for i in range(3):
+    indices_cv = np.append(indices_cv,indices[i,:int(split_coef*n)])
+    indices_test = np.append(indices_test,indices[i,int(split_coef*n):])
+    labels_cv = np.append(labels_cv,labels[i,:int(split_coef*n)])
+    labels_test = np.append(labels_test,labels[i,int(split_coef*n):])
+
+modelsParameters = []
+# arrays to store all the data through the greed search
+histData_greed_search = []
+interp_tprs_greed_search = []
+confusion_matrices_greed_search = []
 
 if __name__=='__main__':
     main()
