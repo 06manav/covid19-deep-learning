@@ -414,7 +414,7 @@ def translate(image, vector):
         return shifted
     
 def main():                                  
-    torch.multiprocessing.freeze_support()
+    #torch.multiprocessing.freeze_support()
     # Top level data directory. Here we assume the format of the directory conforms
     #   to the ImageFolder structure
     
