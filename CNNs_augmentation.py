@@ -235,7 +235,7 @@ def predict(batch, model):
         predicted = predicted.numpy()
     return predicted
 
-def getModel(lr,momentum):
+def getModel(lr,momentum, model_name):
     model_ft, input_size = initialize_model(model_name, num_classes, feature_extract, use_pretrained=True)
 
     # Print the model we just instantiated
@@ -513,7 +513,7 @@ def main():
                     # Setup the loss fxn
                     criterion = nn.CrossEntropyLoss()
                     ### Initialize the model for this run
-                    model_ft, optimizer_ft = getModel(lr, momentum)
+                    model_ft, optimizer_ft = getModel(lr, momentum, model_name)
                     ###
                     # Train and evaluate
                     model, val_acc_history, histData, interp_tprs, confusion_matrices = train_model(model_ft, \
